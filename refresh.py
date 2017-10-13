@@ -35,12 +35,7 @@ def check_latest():
     thereWasNewDates = False
     for i in linksWithDates:
         if pd.to_datetime(i[0]) > latest:
-            try:
-                download_file(i)
-            except:
-                print("Some problems with dowload, will try again in {s:d} seconds".format(s = REFRESHMENT_PERIOD))
-                thereWasNewDates = False
-                break
+            download_file(i)
             thereWasNewDates = True
     if thereWasNewDates:
         import coal_reserves_daily
@@ -51,7 +46,6 @@ def download_file(f):
     filename = os.path.join(INPUT_DATA_FOLDER, f[1] + '.xlsx')
     page = pq(link)
     download_link = page(DOWNLOAD_SELECTOR).attr('href')
-    #print(len(download_link))
     urlretrieve(download_link, filename)
     
 
@@ -61,9 +55,8 @@ latest = max(df['date'])
 today = datetime.now()
 today = today.replace(hour=0, minute=0, second=0, microsecond=0)
 
-while True:
-    print(latest)
-    if latest <  today:
-        check_latest()
-        deploy_results()
-    sleep(REFRESHMENT_PERIOD)
+print(latest)
+if latest <  today:
+    check_latest()
+    deploy_results()
+
