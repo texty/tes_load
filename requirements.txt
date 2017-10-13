@@ -1,0 +1,5 @@
+pandas==0.20.3
+numpy==1.13.1
+xlrd==1.1.0
+translitua==1.2.3
+pyquery==1.2.17
