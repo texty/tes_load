@@ -178,10 +178,8 @@ for i in df_stations.index:
         df_stations['id'][i] += "_a"
     elif df_stations.loc[i, 'coal_type'] == "пісне":
         df_stations['id'][i] += "_p"
-    if df_stations['id'][i] == "v_g":
-        df_stations['id'][i] = "y"
-    elif df_stations['id'][i] == "x_g":
-        df_stations['id'][i] = "f"
+
+
 
 stations_json = []
 stations = df_stations['id'].drop_duplicates()
@@ -197,11 +195,18 @@ for st in stations:
     stations_json.append(station_dict)
     
 
+        
 df_stations = df_stations.loc[df_stations['date'] == max(df_stations['date']), :]
-df_stations['plan_percent'][df_stations['id'] == "y"] = df_stations['plan_percent'][df_stations['id'] == "v_a"].values[0]
-df_stations['plan_percent'][df_stations['id'] == "f"] = df_stations['plan_percent'][df_stations['id'] == "x_a"].values[0]
-df_stations['date'] = df_stations['date'].map(create_date_string)
 
+for i in df_stations.index:
+    if df_stations.loc[i, 'id'].endswith("_g"):
+        print(i)
+        id_a = df_stations.loc[i, 'id'].replace('_g', "_a")
+        print(id_a, df_stations['station'][i])
+        if df_stations[df_stations['id'] == id_a].shape[0] > 0:
+            df_stations['plan_percent'][i] =  df_stations['plan_percent'][df_stations['id'] == id_a].values[0]
+
+df_stations['date'] = df_stations['date'].map(create_date_string)
 
 stations_json_final = []
 for st_d in stations_json:
@@ -209,7 +214,6 @@ for st_d in stations_json:
     st_d['completance'] = station['completance'].values[0]
     st_d['plan_percent'] = station['plan_percent'].values[0]
     st_d['date'] = station['date'].values[0]
-    st_d['id'] = st_d['id'].split("_")[0]
 
 if not os.path.exists(OUTPUT_DATA_FOLDER):
     os.makedirs(OUTPUT_DATA_FOLDER)
