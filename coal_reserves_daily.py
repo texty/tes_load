@@ -230,7 +230,7 @@ for st_d in stations_json:
     st_d['max' + postfix] = blank_string_to_null(station['max'].values[0])
     for p in STATIONS_POSTFIX:
         if p != postfix:
-            st_other_type = df_stations.loc[df_stations['id'] == st_d['id'] + p, :]
+            st_other_type = df_stations.loc[df_stations['id'] == st_d['id'].split("_")[0] + p, :]
             if st_other_type.shape[0] > 0:
                 st_d['min' + p] = blank_string_to_null(st_other_type['min'].values[0])
                 st_d['max' + p] = blank_string_to_null(st_other_type['max'].values[0])
