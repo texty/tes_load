@@ -6,6 +6,8 @@ from datetime import datetime
 from translitua import translit
 import numpy as np
 import json
+import warnings
+
 
 monthes_dict = {"січень":"01", "лютий":"02", "березень":"03", "квітень":"04", "травень":"05", "червень":"06", "липень":"07", "серпень":"08", "вересень":"09", "жовтень":"10", "листопад":"11", "грудень":"12"}
 STATIONS = ["Придніпровська ТЕС", "Старобешівська ТЕС", 'Слов"янська ТЕС', 'Трипільська ТЕС', 'Зміївська ТЕС', "Луганська ТЕС", "Криворізька ТЕС",
@@ -21,6 +23,7 @@ INPUT_DATA_FOLDER = "../coal_input"
 OUTPUT_DATA_FOLDER = "../coal_output"
 
 STATIONS_IDS_FILE = os.path.join(INPUT_DATA_FOLDER, "stations_ids.csv")
+STATIONS_INFO_FILE = os.path.join(INPUT_DATA_FOLDER, "stations_info.json")
 JSON_DATA_FILE = 'data.json'
 
 MONTHES_DICT = {"01":"січня" , "02":"лютого", "03":"березня", "04":"квітня", "05":"травня", "06":"червня", "07":"липня", "08":"серпня", "09":"вересня", "10":"жовтня", "11":"листопада", "12":"грудня"}
@@ -33,6 +36,14 @@ STATIONS_FOLDER = "stations_csvs"
 
 COAL_TYPES_DICTIONARY = {"антрацит":"a", "газове":"g", "пісне":"p"}
 
+STATIONS_POSTFIX = ["_a", "_g", "_p"]
+
+
+def blank_string_to_null(x):
+    if x == "":
+        return 0
+    else:
+        return x
 
 def create_date_string(d):
     d = str(d.date())
@@ -137,6 +148,8 @@ def is_completely_stopped(group):
     return  not_working == coal_types_all
 
 
+warnings.filterwarnings('ignore')
+
 df_ids = pd.read_csv(STATIONS_IDS_FILE)
 stations_dict = {}
 for i in range(df_ids.shape[0]):
@@ -179,6 +192,8 @@ for i in df_stations.index:
     elif df_stations.loc[i, 'coal_type'] == "пісне":
         df_stations['id'][i] += "_p"
 
+with open(STATIONS_INFO_FILE, "r") as sif:
+    stations_info_dict = json.load(sif)
 
 
 stations_json = []
@@ -189,6 +204,7 @@ for st in stations:
     station_dict = {}
     station_dict['station'] = station['station'].values[0]
     station_dict['id'] = station['id'].values[0]
+    station_dict.update(stations_info_dict[station_dict['id'].split("_")[0]])
     station_dict['mentions'] = []
     for i in station.index:
         station_dict['mentions'].append(station.loc[i, ["date", "reserve", "min", "max", "planned", "plan_percent", "coal_type", "days"]].to_dict())
@@ -200,9 +216,7 @@ df_stations = df_stations.loc[df_stations['date'] == max(df_stations['date']), :
 
 for i in df_stations.index:
     if df_stations.loc[i, 'id'].endswith("_g"):
-        print(i)
         id_a = df_stations.loc[i, 'id'].replace('_g', "_a")
-        print(id_a, df_stations['station'][i])
         if df_stations[df_stations['id'] == id_a].shape[0] > 0:
             df_stations['plan_percent'][i] =  df_stations['plan_percent'][df_stations['id'] == id_a].values[0]
 
@@ -211,6 +225,18 @@ df_stations['date'] = df_stations['date'].map(create_date_string)
 stations_json_final = []
 for st_d in stations_json:
     station = df_stations.loc[df_stations['id'] == st_d['id'], :]
+    postfix = "_" + st_d['id'].split('_')[1]
+    st_d['min' + postfix] = blank_string_to_null(station['min'].values[0])
+    st_d['max' + postfix] = blank_string_to_null(station['max'].values[0])
+    for p in STATIONS_POSTFIX:
+        if p != postfix:
+            st_other_type = df_stations.loc[df_stations['id'] == st_d['id'] + p, :]
+            if st_other_type.shape[0] > 0:
+                st_d['min' + p] = blank_string_to_null(st_other_type['min'].values[0])
+                st_d['max' + p] = blank_string_to_null(st_other_type['max'].values[0])
+            else:
+                st_d['min' + p] = -1
+                st_d['max' + p] = -1
     st_d['completance'] = station['completance'].values[0]
     st_d['plan_percent'] = station['plan_percent'].values[0]
     st_d['date'] = station['date'].values[0]
