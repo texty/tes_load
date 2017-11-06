@@ -2,7 +2,7 @@ import xlrd
 import re
 import os
 import pandas as pd
-from datetime import datetime
+import datetime
 from translitua import translit
 import numpy as np
 import json
@@ -22,14 +22,20 @@ region_marker = "обл."
 INPUT_DATA_FOLDER = "../coal_input"
 OUTPUT_DATA_FOLDER = "../coal_output"
 
+
+
 STATIONS_IDS_FILE = os.path.join(INPUT_DATA_FOLDER, "stations_ids.csv")
 STATIONS_INFO_FILE = os.path.join(INPUT_DATA_FOLDER, "stations_info.json")
 JSON_DATA_FILE = 'data.json'
 
 MONTHES_DICT = {"01":"січня" , "02":"лютого", "03":"березня", "04":"квітня", "05":"травня", "06":"червня", "07":"липня", "08":"серпня", "09":"вересня", "10":"жовтня", "11":"листопада", "12":"грудня"}
 
-CSV_HEADERS = ["station", "date", "reserve", "min", "max", "planned", "plan_percent", 'completance', "coal_type", "spending", "days", "stopped", 'filename']
+CSV_HEADERS = ["station", "date", "reserve", "min", "max", "planned", "plan_percent", 'completance', "coal_type", "delivery", "spending", "days", "stopped", 'filename']
 OUTPUT_FILE = os.path.join(INPUT_DATA_FOLDER,  "coal_reserves_stations.csv")
+
+
+OUTPUT_STATIC_HEADERS = ["station_id", "latitude", "longitude", "owner", "spending_a_jan2016", "spending_p_jan2016", "spending_g_jan2016"]
+
 NOT_SPACE = re.compile("\S+")
 
 STATIONS_FOLDER = "stations_csvs"
@@ -71,7 +77,7 @@ def get_workbook(filename):
     ncols = sheet.ncols
     nrows = sheet.nrows
     date = xlrd.xldate_as_tuple(sheet.cell(0, 0).value,0)
-    date = datetime(*date[0:6]).strftime("%Y-%m-%d")
+    date = datetime.datetime(*date[0:6]).strftime("%Y-%m-%d")
     for i in range(2,nrows):
         row = [sheet.cell(i, c_number) for c_number in range(ncols)]
         parse_row(row)
@@ -121,10 +127,12 @@ def parse_row(row):
                     days = 0
                 else:
                     days = None
-                if (spending == 0 and reserve == 0) or is_stopped(row):
+                """if (spending == 0 and reserve == 0) or is_stopped(row):
                     stopped = True
                 else:
-                    stopped = False
+                    stopped = False"""
+                stopped = is_stopped(row)
+                delivery = row[spending_id - 1].value
                 coal_type = coal_type_refine(row[1].value)
                 try:
                     plan_percent = round(float(reserve) / float(plan_coal) * 100)
@@ -132,7 +140,7 @@ def parse_row(row):
                 except:
                     plan_percent = None
                     completance = None
-                df_temp = pd.DataFrame([[station, date, reserve,  min_coal, max_coal, plan_coal, plan_percent, completance, coal_type, spending, days, stopped, f]], columns = CSV_HEADERS)
+                df_temp = pd.DataFrame([[station, date, reserve,  min_coal, max_coal, plan_coal, plan_percent, completance, coal_type, delivery, spending, days, stopped, f]], columns = CSV_HEADERS)
                 df_stations = df_stations.append(df_temp, ignore_index = True)   
     else:
         if not is_blank(row[0]):
@@ -176,13 +184,28 @@ for f in form:
     mine = None
     get_workbook(f)
 
+with open(STATIONS_INFO_FILE, "r") as sif:
+    stations_info_dict = json.load(sif)
+
+
+
+static_info_keys = [h.replace("_jan2016", "") for h in OUTPUT_STATIC_HEADERS[1:]]
+static_info_rows = []
+for k in stations_info_dict:
+    row = [stations_info_dict[k][r] for r in static_info_keys]
+    row = [k] + row
+    static_info_rows.append(row)
+df_stations_static = pd.DataFrame(static_info_rows, columns = OUTPUT_STATIC_HEADERS)
 
 df_stations['station'] = df_stations['station'].str.replace("\n", "")
 df_stations = df_stations.loc[df_stations['station'].isin(df_ids['station_title_original']), :]
 df_stations['date'] = pd.to_datetime(df_stations['date'], format = '%Y-%m-%d')
 df_stations['id'] = df_stations['station'].map(lambda s: stations_dict[s]['id'])
 df_stations['station'] = df_stations['station'].map(lambda s: stations_dict[s]['short'])
-df_stations.to_csv(OUTPUT_FILE, index = False)
+df_stations = df_stations.loc[:, ["id", "station", "date", "reserve", "min", "max", "planned", "plan_percent", 'completance', "coal_type", "delivery", "spending"]]
+df_stations_output = df_stations.merge(df_stations_static, left_on = "id", right_on = "station_id")
+df_stations_output = df_stations_output.loc[:, df_stations_output.columns != "id"]
+df_stations_output.to_csv(OUTPUT_FILE, index = False)
 
 for i in df_stations.index:
     if df_stations.loc[i, 'coal_type'] == "газове":
@@ -192,8 +215,6 @@ for i in df_stations.index:
     elif df_stations.loc[i, 'coal_type'] == "пісне":
         df_stations['id'][i] += "_p"
 
-with open(STATIONS_INFO_FILE, "r") as sif:
-    stations_info_dict = json.load(sif)
 
 
 stations_json = []
@@ -209,9 +230,8 @@ for st in stations:
     for i in station.index:
         station_dict['mentions'].append(station.loc[i, ["date", "reserve", "min", "max", "planned", "plan_percent", "coal_type", "days"]].to_dict())
     stations_json.append(station_dict)
-    
 
-        
+df_stations30 = df_stations.loc[df_stations['date'] >= max(df_stations['date'] + datetime.timedelta(-30)), :]     
 df_stations = df_stations.loc[df_stations['date'] == max(df_stations['date']), :]
 
 for i in df_stations.index:
@@ -225,18 +245,29 @@ df_stations['date'] = df_stations['date'].map(create_date_string)
 stations_json_final = []
 for st_d in stations_json:
     station = df_stations.loc[df_stations['id'] == st_d['id'], :]
+    station30 = df_stations30.loc[df_stations30['id'] == st_d['id'], :]
     postfix = "_" + st_d['id'].split('_')[1]
     st_d['min' + postfix] = blank_string_to_null(station['min'].values[0])
     st_d['max' + postfix] = blank_string_to_null(station['max'].values[0])
+    st_d['last30days_delivery' + postfix] = round(station30['delivery'].sum(), 2)
+    st_d['last30days_spending' + postfix] = round(station30['spending'].sum(), 2)
+    st_d['reserve' + postfix] = station['reserve'].values[0]
     for p in STATIONS_POSTFIX:
         if p != postfix:
             st_other_type = df_stations.loc[df_stations['id'] == st_d['id'].split("_")[0] + p, :]
+            st_other_type30 = df_stations30.loc[df_stations30['id'] == st_d['id'].split("_")[0] + p, :]
             if st_other_type.shape[0] > 0:
                 st_d['min' + p] = blank_string_to_null(st_other_type['min'].values[0])
                 st_d['max' + p] = blank_string_to_null(st_other_type['max'].values[0])
+                st_d['reserve' + p] = blank_string_to_null(st_other_type['reserve'].values[0])
+                st_d['last30days_delivery' + p] = round(st_other_type30['delivery'].sum(), 2)
+                st_d['last30days_spending' + p] = round(st_other_type30['spending'].sum(), 2)
             else:
                 st_d['min' + p] = -1
                 st_d['max' + p] = -1
+                st_d['reserve' + p] = -1
+                st_d['last30days_delivery' + p] = -1
+                st_d['last30days_spending' + p] = -1
     st_d['completance'] = station['completance'].values[0]
     st_d['plan_percent'] = station['plan_percent'].values[0]
     st_d['date'] = station['date'].values[0]
