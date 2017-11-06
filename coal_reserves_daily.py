@@ -202,7 +202,7 @@ df_stations = df_stations.loc[df_stations['station'].isin(df_ids['station_title_
 df_stations['date'] = pd.to_datetime(df_stations['date'], format = '%Y-%m-%d')
 df_stations['id'] = df_stations['station'].map(lambda s: stations_dict[s]['id'])
 df_stations['station'] = df_stations['station'].map(lambda s: stations_dict[s]['short'])
-df_stations = df_stations.loc[:, ["id", "station", "date", "reserve", "min", "max", "planned", "plan_percent", 'completance', "coal_type", "delivery", "spending"]]
+df_stations = df_stations.loc[:, ["id", "station", "date", "reserve", "min", "max", "planned", "plan_percent", 'completance', "coal_type", "delivery", "spending", "days"]]
 df_stations_output = df_stations.merge(df_stations_static, left_on = "id", right_on = "station_id")
 df_stations_output = df_stations_output.loc[:, df_stations_output.columns != "id"]
 df_stations_output.to_csv(OUTPUT_FILE, index = False)
