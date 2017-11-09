@@ -110,7 +110,7 @@ def parse_row(row):
                 if "вугілля" in station.lower():
                     coal_type_string = station
                 reserve = row[reserve_id].value
-                if not reserve:
+                if (not reserve) and reserve != 0:
                     reserve = None
                 else:
                     reserve = round(float(row[reserve_id].value))
@@ -229,7 +229,8 @@ for st in stations:
     station_dict['mentions'] = []
     for i in station.index:
         station_dict['mentions'].append(station.loc[i, ["date", "reserve", "min", "max", "planned", "plan_percent", "coal_type", "days"]].to_dict())
-    stations_json.append(station_dict)
+    if len(station_dict['mentions']) > 1:
+        stations_json.append(station_dict)
 
 df_stations30 = df_stations.loc[df_stations['date'] >= max(df_stations['date'] + datetime.timedelta(-30)), :]     
 df_stations = df_stations.loc[df_stations['date'] == max(df_stations['date']), :]
