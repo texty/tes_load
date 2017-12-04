@@ -240,6 +240,10 @@ for i in df_stations.index:
         id_a = df_stations.loc[i, 'id'].replace('_g', "_a")
         if df_stations[df_stations['id'] == id_a].shape[0] > 0:
             df_stations['plan_percent'][i] =  df_stations['plan_percent'][df_stations['id'] == id_a].values[0]
+        else:
+            id_p = df_stations.loc[i, 'id'].replace('_g', "_p")
+            if df_stations[df_stations['id'] == id_p].shape[0] > 0:
+                df_stations['plan_percent'][i] =  df_stations['plan_percent'][df_stations['id'] == id_p].values[0]
 
 df_stations['date'] = df_stations['date'].map(create_date_string)
 
