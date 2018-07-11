@@ -68,7 +68,6 @@ def is_blank(cell):
     return NOT_SPACE.search(str(cell.value)) == None
 
 def get_workbook(filename):
-    print(filename)
     global reserve_id, days_id
     global wb, sheet, year_month, rows, is_enterprise, date
     reserve_id = None
@@ -80,7 +79,6 @@ def get_workbook(filename):
     date = xlrd.xldate_as_tuple(sheet.cell(0, 0).value,0)
     date = datetime.datetime(*date[0:6]).strftime("%Y-%m-%d")
     for i in range(2,nrows):
-        print(i)
         row = [sheet.cell(i, c_number) for c_number in range(ncols)]
         parse_row(row)
 
@@ -107,7 +105,6 @@ def parse_row(row):
     global reserve_id, spending_id
     if reserve_id:
         if not is_blank(row[0]):
-            print("working")
             if row[0].value != row[0].value.upper():
                 station = row[0].value.replace("Ө", "").strip()
                 if "вугілля" in station.lower():
