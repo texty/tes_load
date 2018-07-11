@@ -123,8 +123,6 @@ def parse_row(row):
                 spending = row[spending_id+1].value
                 if spending != "" and spending != 0 and reserve is not None:
                     days = round(reserve / spending)
-                elif spending == 0:
-                    days = 0
                 else:
                     days = None
                 stopped = is_stopped(row)
