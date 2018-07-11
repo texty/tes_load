@@ -68,6 +68,7 @@ def is_blank(cell):
     return NOT_SPACE.search(str(cell.value)) == None
 
 def get_workbook(filename):
+    print(filename)
     global reserve_id, days_id
     global wb, sheet, year_month, rows, is_enterprise, date
     reserve_id = None
@@ -79,6 +80,7 @@ def get_workbook(filename):
     date = xlrd.xldate_as_tuple(sheet.cell(0, 0).value,0)
     date = datetime.datetime(*date[0:6]).strftime("%Y-%m-%d")
     for i in range(2,nrows):
+        print(i)
         row = [sheet.cell(i, c_number) for c_number in range(ncols)]
         parse_row(row)
 
@@ -105,6 +107,7 @@ def parse_row(row):
     global reserve_id, spending_id
     if reserve_id:
         if not is_blank(row[0]):
+            print("working")
             if row[0].value != row[0].value.upper():
                 station = row[0].value.replace("Ө", "").strip()
                 if "вугілля" in station.lower():
@@ -121,16 +124,12 @@ def parse_row(row):
                 else:
                     plan_coal = None
                 spending = row[spending_id+1].value
-                if spending != "" and spending != 0:
+                if spending != "" and spending != 0 and reserve is not None:
                     days = round(reserve / spending)
                 elif spending == 0:
                     days = 0
                 else:
                     days = None
-                """if (spending == 0 and reserve == 0) or is_stopped(row):
-                    stopped = True
-                else:
-                    stopped = False"""
                 stopped = is_stopped(row)
                 delivery = row[spending_id - 1].value
                 coal_type = coal_type_refine(row[1].value)
@@ -143,12 +142,11 @@ def parse_row(row):
                 df_temp = pd.DataFrame([[station, date, reserve,  min_coal, max_coal, plan_coal, plan_percent, completance, coal_type, delivery, spending, days, stopped, f]], columns = CSV_HEADERS)
                 df_stations = df_stations.append(df_temp, ignore_index = True)   
     else:
-        if not is_blank(row[0]):
-            for i in range(len(row)):
-                if str(row[i].value).strip().startswith("Запас"):
-                    reserve_id = i
-                if str(row[i].value).strip().startswith("Витрата"):
-                    spending_id = i
+        for i in range(len(row)):
+            if str(row[i].value).strip().startswith("Запас"):
+                reserve_id = i
+            if str(row[i].value).strip().startswith("Витрата"):
+                spending_id = i
      
 def is_completely_stopped(group):
     not_working = sum(group['stopped'])
