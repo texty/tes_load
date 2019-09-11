@@ -7,6 +7,7 @@ from translitua import translit
 import numpy as np
 import json
 import warnings
+import traceback
 
 
 monthes_dict = {"січень":"01", "лютий":"02", "березень":"03", "квітень":"04", "травень":"05", "червень":"06", "липень":"07", "серпень":"08", "вересень":"09", "жовтень":"10", "листопад":"11", "грудень":"12"}
@@ -76,7 +77,19 @@ def get_workbook(filename):
     sheet = wb.sheet_by_index(0)
     ncols = sheet.ncols
     nrows = sheet.nrows
-    date = xlrd.xldate_as_tuple(sheet.cell(0, 0).value,0)
+    
+    #fixme проблема у місці в таблиці де зазначають дату.
+    # іноді це перший рядок, іноді другий. можливо ще існують варіанти
+    # Обережно, дуже брутальний хак, не повторюйте вдома.
+    # Всі хаки виконані професіоналами, ніхто не постраждав
+
+    try:
+        date = xlrd.xldate_as_tuple(sheet.cell(0, 0).value,0)
+    
+    except Exception as e:
+        traceback.print_exc()
+        date = xlrd.xldate_as_tuple(sheet.cell(1, 0).value, 0) 
+    
     date = datetime.datetime(*date[0:6]).strftime("%Y-%m-%d")
     for i in range(2,nrows):
         row = [sheet.cell(i, c_number) for c_number in range(ncols)]
